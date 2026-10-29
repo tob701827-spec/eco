@@ -11,7 +11,7 @@ async function init() {
     model = await tmImage.load(modelURL, metadataURL);
     maxPredictions = model.getTotalClasses();
 
-    // Configurar la cámara web (tamaño 224x224 según tu metadata)[cite: 10]
+    // Configurar la cámara web (tamaño 224x224 según tu metadata)
     const flip = true; 
     webcam = new tmImage.Webcam(224, 224, flip);
     await webcam.setup(); // Solicita permisos de la cámara
@@ -43,4 +43,9 @@ async function predict() {
             prediction[i].className + ": " + (prediction[i].probability * 100).toFixed(1) + "%";
         labelContainer.childNodes[i].innerHTML = classPrediction;
     }
+}
+
+// Función puente para que el botón del HTML reconozca la acción sin errores
+function toggleWebcam() {
+    init();
 }
