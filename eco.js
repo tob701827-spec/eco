@@ -1,209 +1,100 @@
-/**
- * EcoTrack - Lógica del Cliente e Integración con Teachable Machine
- */
+// Enlace a tu modelo entrenado en Teachable Machine
+const MODEL_URL = "https://teachablemachine.withgoogle.com/models/R_t4l0Odo/";
 
-// URL del modelo predeterminado (o tu modelo subido a Teachable Machine)
-let MODEL_URL = "https://teachablemachine.withgoogle.com/models/v5-G4XyE3/"; 
+let model, webcam, labelContainer, maxPredictions;
 
-let model, webcam, maxPredictions;
-let isWebcamActive = false;
-let userPoints = 0;
-
-// Datos ecológicos complementarios por categoría
+// Base de datos de información por cada material reconocido
 const ecoData = {
-    "Plástico": {
-        co2: "0.05 kg",
-        bin: "Contenedor Amarillo (Reciclables)",
-        tip: "Enjuaga la botella y aplástala para optimizar el espacio antes de desecharla."
-    },
-    "Papel/Cartón": {
+    "carton y papel": {
         co2: "0.08 kg",
-        bin: "Contenedor Azul (Papel y Cartón)",
-        tip: "Asegúrate de que no tenga grasa ni restos de comida (las cajas de pizza muy sucias van a basurero común)."
+        bin: "Contenedor Azul / Cartón y Papel",
+        tip: "Asegúrate de que las cajas estén desarmadas y no tengan grasa ni restos de comida."
     },
-    "Vidrio": {
+    "plastico": {
         co2: "0.15 kg",
-        bin: "Contenedor Verde (Vidrios)",
-        tip: "Retira las tapas o corchos de botellas y frascos antes de depositar el vidrio."
+        bin: "Contenedor Amarillo / Plásticos",
+        tip: "Enjuaga los envases y aplástalos para reducir el espacio que ocupan."
     },
-    "Orgánico": {
-        co2: "0.12 kg",
-        bin: "Contenedor Marrón (Compost/Orgánico)",
-        tip: "Ideal para hacer compostaje casero y nutrir suelos de jardines."
+    "vidrio": {
+        co2: "0.20 kg",
+        bin: "Contenedor Verde / Vidrios",
+        tip: "Retira las tapas o corchos antes de depositar las botellas o frascos."
+    },
+    "NADA": {
+        co2: "0.00 kg",
+        bin: "Esperando residuo...",
+        tip: "Muestra un objeto frente a la cámara para iniciar la clasificación."
     }
 };
 
-// Inicialización automática
-window.addEventListener('DOMContentLoaded', () => {
-    initModel();
-});
+// Inicializa el modelo y la cámara web
+async function init() {
+    const modelURL = MODEL_URL + "model.json";
+    const metadataURL = MODEL_URL + "metadata.json";
 
-// Cargar modelo de Teachable Machine
-async function initModel() {
-    try {
-        const modelURL = MODEL_URL + "model.json";
-        const metadataURL = MODEL_URL + "metadata.json";
+    // Cargar el modelo
+    model = await tmImage.load(modelURL, metadataURL);
+    maxPredictions = model.getTotalClasses();
 
-        model = await tmImage.load(modelURL, metadataURL);
-        maxPredictions = model.getTotalClasses();
-        console.log("Modelo EcoTrack cargado correctamente.");
-    } catch (e) {
-        console.warn("No se pudo cargar el modelo remoto. Se ejecutará en modo demostración/simulación.", e);
-    }
+    // Configurar la cámara web
+    const flip = true; 
+    webcam = new tmImage.Webcam(300, 300, flip); 
+    await webcam.setup(); 
+    await webcam.play();
+    window.requestAnimationFrame(loop);
+
+    // Insertar el video de la cámara en el HTML
+    const container = document.getElementById("webcam-container");
+    container.innerHTML = "";
+    container.appendChild(webcam.canvas);
+
+    labelContainer = document.getElementById("label-container");
 }
 
-// Cargar modelo personalizado por URL del usuario
-async function loadCustomModel() {
-    const inputUrl = document.getElementById('model-url').value.trim();
-    if (!inputUrl) return alert("Por favor ingresa un enlace válido.");
+async function loop() {
+    webcam.update();
+    await predict();
+    window.requestAnimationFrame(loop);
+}
+
+// Analizar la imagen de la cámara en tiempo real
+async function predict() {
+    const prediction = await model.predict(webcam.canvas);
     
-    MODEL_URL = inputUrl.endsWith('/') ? inputUrl : inputUrl + '/';
-    await initModel();
-    alert("¡Modelo actualizado con éxito!");
-}
+    let highestPrediction = { className: "", probability: 0 };
 
-// Controlar Cámara Web
-async function toggleWebcam() {
-    const webcamContainer = document.getElementById('webcam-container');
-    const placeholder = document.getElementById('placeholder-ui');
-    const imgPreview = document.getElementById('image-preview');
-    const btnWebcam = document.getElementById('btn-webcam');
-
-    if (!isWebcamActive) {
-        // Encender Cámara
-        try {
-            const flip = true;
-            webcam = new tmImage.Webcam(320, 240, flip);
-            await webcam.setup();
-            await webcam.play();
-            
-            webcamContainer.innerHTML = '';
-            webcamContainer.appendChild(webcam.canvas);
-            
-            placeholder.classList.add('hidden');
-            imgPreview.classList.add('hidden');
-            webcamContainer.classList.remove('hidden');
-            
-            isWebcamActive = true;
-            btnWebcam.innerHTML = `<i class="fa-solid fa-video-slash"></i> Apagar Cámara`;
-            btnWebcam.classList.replace('btn-primary', 'bg-rose-600');
-            
-            window.requestAnimationFrame(webcamLoop);
-        } catch (err) {
-            alert("No se pudo acceder a la cámara web. Comprueba los permisos de tu navegador.");
+    // Buscar la categoría con mayor probabilidad
+    for (let i = 0; i < maxPredictions; i++) {
+        if (prediction[i].probability > highestPrediction.probability) {
+            highestPrediction = prediction[i];
         }
-    } else {
-        // Apagar Cámara
-        if (webcam) await webcam.stop();
-        webcamContainer.classList.add('hidden');
-        placeholder.classList.remove('hidden');
-        
-        isWebcamActive = false;
-        btnWebcam.innerHTML = `<i class="fa-solid fa-video"></i> Activar Cámara`;
-        btnWebcam.classList.replace('bg-rose-600', 'btn-primary');
+    }
+
+    // Actualizar la interfaz si la certeza es mayor al 75%
+    if (highestPrediction.probability > 0.75) {
+        updateUI(highestPrediction.className, highestPrediction.probability);
     }
 }
 
-// Bucle de predicción de la Cámara
-async function webcamLoop() {
-    if (isWebcamActive) {
-        webcam.update();
-        await predict(webcam.canvas);
-        window.requestAnimationFrame(webcamLoop);
-    }
-}
-
-// Subida e Inspección de Imagen Local
-function handleImageUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (isWebcamActive) toggleWebcam(); // Apagar cámara si está encendida
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const imgElement = document.getElementById('image-preview');
-        imgElement.src = e.target.result;
-        imgElement.classList.remove('hidden');
-        
-        document.getElementById('placeholder-ui').classList.add('hidden');
-        document.getElementById('webcam-container').classList.add('hidden');
-
-        imgElement.onload = async () => {
-            await predict(imgElement);
-        };
+// Mostrar los datos del residuo en pantalla
+function updateUI(className, probability) {
+    const data = ecoData[className] || {
+        co2: "N/A",
+        bin: "Contenedor Desconocido",
+        tip: "Por favor revisa la clasificación manual del residuo."
     };
-    reader.readAsDataURL(file);
-}
 
-// Procesar Predicción del Modelo
-async function predict(imageElement) {
-    let predictions = [];
-
-    if (model) {
-        predictions = await model.predict(imageElement);
-    } else {
-        // Simulación si no hay modelo activo
-        predictions = [
-            { className: "Plástico", probability: 0.88 },
-            { className: "Papel/Cartón", probability: 0.07 },
-            { className: "Vidrio", probability: 0.03 },
-            { className: "Orgánico", probability: 0.02 }
-        ];
-    }
-
-    renderResults(predictions);
-}
-
-// Renderizar UI de Resultados
-function renderResults(predictions) {
-    const container = document.getElementById('results-container');
-    container.innerHTML = '';
-
-    // Ordenar predicciones de mayor a menor probabilidad
-    predictions.sort((a, b) => b.probability - a.probability);
-    
-    const topPrediction = predictions[0];
-
-    predictions.forEach(pred => {
-        const percentage = (pred.probability * 100).toFixed(1);
-        
-        const itemHtml = `
-            <div class="space-y-1">
-                <div class="flex justify-between text-xs font-medium">
-                    <span class="text-slate-200">${pred.className}</span>
-                    <span class="text-emerald-400 font-bold">${percentage}%</span>
-                </div>
-                <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
-                    <div class="progress-bar-fill h-full rounded-full" style="width: ${percentage}%"></div>
+    if (labelContainer) {
+        labelContainer.innerHTML = `
+            <div class="p-4 bg-white rounded-lg shadow border border-green-100">
+                <h3 class="text-xl font-bold text-green-700 capitalize mb-1">${className}</h3>
+                <p class="text-sm text-gray-500 mb-2">Confianza: <strong>${(probability * 100).toFixed(1)}%</strong></p>
+                <div class="text-sm space-y-1">
+                    <p>🌱 <strong>Ahorro de CO2:</strong> ${data.co2}</p>
+                    <p>♻️ <strong>Destino:</strong> ${data.bin}</p>
+                    <p class="text-xs text-gray-600 mt-2 bg-green-50 p-2 rounded">💡 ${data.tip}</p>
                 </div>
             </div>
         `;
-        container.innerHTML += itemHtml;
-    });
-
-    // Actualizar Panel de Impacto con el resultado principal
-    if (topPrediction && topPrediction.probability > 0.40) {
-        updateEcoImpact(topPrediction.className);
     }
-}
-
-// Actualizar Impacto Ambiental y Puntos Verdes
-function updateEcoImpact(categoryName) {
-    const impactCard = document.getElementById('eco-impact-card');
-    const info = ecoData[categoryName] || {
-        co2: "0.03 kg",
-        bin: "Residuos Generales",
-        tip: "Clasifica el material según las normas locales de reciclaje."
-    };
-
-    document.getElementById('co2-value').innerText = info.co2;
-    document.getElementById('bin-value').innerText = info.bin;
-    document.getElementById('eco-tip').innerText = info.tip;
-
-    impactCard.classList.remove('hidden');
-
-    // Sumar puntos verdes
-    userPoints += 10;
-    document.getElementById('user-points').innerText = userPoints;
 }
