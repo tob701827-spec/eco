@@ -1,27 +1,46 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clasificador de Residuos Eco</title>
-    <link rel="stylesheet" href="nose.css">
-</head>
-<body>
-    <div class="container">
-        <h1>Clasificador de Reciclaje</h1>
-        <p>Apunta con tu cámara para clasificar: cartón y papel, plástico, vidrio o nada.</p>
-        
-        <button id="start-btn" onclick="init()">Iniciar Cámara</button>
-        
-        <div id="webcam-container"></div>
-        <div id="label-container"></div>
-    </div>
+// Ruta donde se encuentra la carpeta de tu modelo con los 3 archivos
+const URL = "./my_model/";
 
-    <!-- Librerías de TensorFlow.js y Teachable Machine -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+let model, webcam, labelContainer, maxPredictions;
+
+async function init() {
+    const modelURL = URL + "model.json";
+    const metadataURL = URL + "metadata.json";
+
+    // Cargar el modelo y los metadatos
+    model = await tmImage.load(modelURL, metadataURL);
+    maxPredictions = model.getTotalClasses();
+
+    // Configurar la cámara web (tamaño 224x224 según tu metadata)[cite: 10]
+    const flip = true; 
+    webcam = new tmImage.Webcam(224, 224, flip);
+    await webcam.setup(); // Solicita permisos de la cámara
+    await webcam.play();
+    window.requestAnimationFrame(loop);
+
+    // Mostrar el canvas de la cámara en el HTML
+    document.getElementById("webcam-container").replaceChildren(webcam.canvas);
     
-    <!-- Tu archivo JavaScript -->
-    <script src="eco.js"></script>
-</body>
-</html>
+    // Preparar el contenedor de etiquetas
+    labelContainer = document.getElementById("label-container");
+    labelContainer.replaceChildren();
+    for (let i = 0; i < maxPredictions; i++) {
+        labelContainer.appendChild(document.createElement("div"));
+    }
+}
+
+async function loop() {
+    webcam.update(); // Actualiza el frame de la cámara
+    await predict();
+    window.requestAnimationFrame(loop);
+}
+
+async function predict() {
+    // Realiza la predicción usando la imagen actual de la cámara
+    const prediction = await model.predict(webcam.canvas);
+    for (let i = 0; i < maxPredictions; i++) {
+        const classPrediction =
+            prediction[i].className + ": " + (prediction[i].probability * 100).toFixed(1) + "%";
+        labelContainer.childNodes[i].innerHTML = classPrediction;
+    }
+}
