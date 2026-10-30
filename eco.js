@@ -4,7 +4,9 @@ let URL = DEFAULT_URL;
 
 let model, webcam, maxPredictions;
 let webcamActive = false;
-let userPoints = 0;
+
+// Almacenar probabilidades suavizadas para evitar que las barras se "vuelvan locas"
+let smoothedProbabilities = [];
 
 // Inicializar al cargar o cambiar de modelo
 async function loadModel(customUrl) {
@@ -14,6 +16,7 @@ async function loadModel(customUrl) {
     try {
         model = await tmImage.load(modelURL, metadataURL);
         maxPredictions = model.getTotalClasses();
+        smoothedProbabilities = new Array(maxPredictions).fill(0);
         console.log("Modelo cargado correctamente. Clases:", maxPredictions);
     } catch (error) {
         console.error("Error al cargar el modelo:", error);
@@ -21,7 +24,7 @@ async function loadModel(customUrl) {
     }
 }
 
-// Cargar modelo personalizado desde el input de texto
+// Cargar modelo personalizado
 async function loadCustomModel() {
     const inputUrl = document.getElementById("model-url").value.trim();
     if (inputUrl) {
@@ -48,15 +51,15 @@ async function toggleWebcam() {
             imagePreview.classList.add("hidden");
             webcamContainer.classList.remove("hidden");
 
-            webcam = new tmImage.Webcam(224, 224, true);
+            // Cargar la cámara ajustada al contenedor
+            webcam = new tmImage.Webcam(400, 400, true);
             await webcam.setup();
             await webcam.play();
             webcamActive = true;
 
             webcamContainer.replaceChildren(webcam.canvas);
-            btnWebcam.innerHTML = `<i class="fa-solid fa-video-slash text-lg"></i> Detener Cámara`;
-            btnWebcam.classList.replace("btn-extravagant-primary", "bg-rose-500");
-            btnWebcam.classList.add("text-white", "font-bold", "rounded-xl");
+            btnWebcam.innerHTML = `<i class="fa-solid fa-video-slash"></i> Detener Cámara`;
+            btnWebcam.classList.replace("btn-neon-primary", "bg-rose-600");
 
             window.requestAnimationFrame(loopWebcam);
         } catch (error) {
@@ -79,9 +82,8 @@ function stopWebcam() {
 
     webcamContainer.classList.add("hidden");
     placeholder.classList.remove("hidden");
-    btnWebcam.innerHTML = `<i class="fa-solid fa-video text-lg"></i> Activar Cámara`;
-    btnWebcam.classList.remove("bg-rose-500");
-    btnWebcam.classList.add("btn-extravagant-primary");
+    btnWebcam.innerHTML = `<i class="fa-solid fa-video"></i> Activar Cámara`;
+    btnWebcam.classList.replace("bg-rose-600", "btn-neon-primary");
 }
 
 async function loopWebcam() {
@@ -122,51 +124,63 @@ async function handleImageUpload(event) {
     reader.readAsDataURL(file);
 }
 
-// Realizar la predicción con BARRAS EXTRAVAGANTES y LLAMATIVAS
+// Predicción con suavizado exponencial para eliminar parpadeos de las barras
 async function predict(sourceElement) {
     if (!model) return;
 
     const prediction = await model.predict(sourceElement);
     const resultsContainer = document.getElementById("results-container");
-    resultsContainer.replaceChildren();
 
-    let highestPrediction = prediction[0];
+    // Factor de suavizado (0.15 = transiciones muy suaves y estables)
+    const alpha = webcamActive ? 0.2 : 1.0;
+
+    let highestIndex = 0;
+    let maxProb = 0;
+
+    // Actualizar probabilidades suavizadas
+    for (let i = 0; i < maxPredictions; i++) {
+        const rawProb = prediction[i].probability * 100;
+        smoothedProbabilities[i] = (alpha * rawProb) + ((1 - alpha) * (smoothedProbabilities[i] || 0));
+
+        if (smoothedProbabilities[i] > maxProb) {
+            maxProb = smoothedProbabilities[i];
+            highestIndex = i;
+        }
+    }
+
+    resultsContainer.replaceChildren();
 
     for (let i = 0; i < maxPredictions; i++) {
         const className = prediction[i].className;
-        const probability = (prediction[i].probability * 100);
+        const probVal = smoothedProbabilities[i];
 
-        if (prediction[i].probability > highestPrediction.probability) {
-            highestPrediction = prediction[i];
-        }
-
-        // Crear barra de progreso extravagantemente llamativa
         const progressWrapper = document.createElement("div");
-        progressWrapper.className = "space-y-1.5 p-3 rounded-2xl bg-white/70 border border-teal-100 shadow-sm";
+        progressWrapper.className = "space-y-1.5 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800";
 
         progressWrapper.innerHTML = `
-            <div class="flex justify-between items-center text-sm font-black">
-                <span class="capitalize text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-leaf text-emerald-500"></i> ${className}
+            <div class="flex justify-between items-center text-xs sm:text-sm font-semibold">
+                <span class="capitalize text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-tag text-emerald-400"></i> ${className}
                 </span>
-                <span class="bg-gradient-to-r from-emerald-500 to-sky-500 text-white font-mono text-xs px-2.5 py-1 rounded-full shadow-sm">
-                    ${probability.toFixed(1)}%
+                <span class="font-mono text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800/60">
+                    ${probVal.toFixed(1)}%
                 </span>
             </div>
-            <div class="w-full bg-slate-100 rounded-full h-4 p-0.5 overflow-hidden border border-emerald-200 shadow-inner">
-                <div class="bg-gradient-to-r from-emerald-400 via-teal-400 to-sky-500 h-full rounded-full transition-all duration-500 shadow-md" style="width: ${probability}%"></div>
+            <div class="w-full bg-slate-950 rounded-full h-3 overflow-hidden border border-slate-800">
+                <div class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full rounded-full smooth-progress" style="width: ${probVal.toFixed(1)}%"></div>
             </div>
         `;
         resultsContainer.appendChild(progressWrapper);
     }
 
-    // Actualizar impacto ambiental si detecta un residuo válido (>75%)
-    if (highestPrediction.probability > 0.75 && highestPrediction.className !== "nada") {
-        updateEcoImpact(highestPrediction.className);
+    // Mostrar impacto ambiental si la predicción destacada supera el 75%
+    const highestClass = prediction[highestIndex].className;
+    if (maxProb > 75 && highestClass.toLowerCase() !== "nada") {
+        updateEcoImpact(highestClass);
     }
 }
 
-// Información de impacto ambiental con contenedores y tips destacados
+// Información de impacto ambiental
 function updateEcoImpact(className) {
     const impactCard = document.getElementById("eco-impact-card");
     const co2Value = document.getElementById("co2-value");
@@ -178,18 +192,18 @@ function updateEcoImpact(className) {
     const impactData = {
         "carton y papel": {
             co2: "-0.5 kg CO₂ eq",
-            bin: "📦 Contenedor Azul (Papel y Cartón)",
-            tip: "¡Pliega muy bien las cajas! Ahorras hasta un 70% de espacio en el contenedor."
+            bin: "Contenedor Azul (Papel y Cartón)",
+            tip: "Pliega muy bien las cajas antes de reciclarlas para optimizar el espacio en el centro de acopio."
         },
         "plastico": {
             co2: "-1.2 kg CO₂ eq",
-            bin: "🟡 Contenedor Amarillo (Envases y Plásticos)",
-            tip: "¡Enjuaga la botella antes de reciclarla! Evita malos olores e insectos en el proceso."
+            bin: "Contenedor Amarillo (Envases y Plásticos)",
+            tip: "Enjuaga ligeramente los envases plásticos antes de depositarlos para facilitar su reciclaje."
         },
         "vidrio": {
             co2: "-0.8 kg CO₂ eq",
-            bin: "🟢 Contenedor Verde (Vidrio)",
-            tip: "¡Increíble! El vidrio es 100% reciclable e infinito sin perder nunca su calidad."
+            bin: "Contenedor Verde (Vidrio)",
+            tip: "El vidrio es 100% reciclable y puede reutilizarse infinitamente sin perder su calidad."
         }
     };
 
@@ -198,9 +212,6 @@ function updateEcoImpact(className) {
         co2Value.textContent = data.co2;
         binValue.textContent = data.bin;
         ecoTip.textContent = data.tip;
-
-        userPoints += 10;
-        document.getElementById("user-points").textContent = userPoints;
     }
 }
 
