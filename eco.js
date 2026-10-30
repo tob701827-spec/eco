@@ -1,5 +1,5 @@
-// Ruta de tu modelo local
-const DEFAULT_URL = "./my_model/";
+// Enlace predeterminado de tu modelo en Teachable Machine
+const DEFAULT_URL = "https://teachablemachine.withgoogle.com/models/[...]/";
 let URL = DEFAULT_URL;
 
 let model, webcam, maxPredictions;
@@ -20,11 +20,11 @@ async function loadModel(customUrl) {
         console.log("Modelo cargado correctamente. Clases:", maxPredictions);
     } catch (error) {
         console.error("Error al cargar el modelo:", error);
-        alert("No se pudo cargar el modelo. Verifica la ruta o los archivos en la carpeta my_model.");
+        alert("No se pudo cargar el modelo. Verifica la ruta o el enlace de Teachable Machine.");
     }
 }
 
-// Cargar modelo personalizado
+// Cargar modelo personalizado desde la interfaz
 async function loadCustomModel() {
     const inputUrl = document.getElementById("model-url").value.trim();
     if (inputUrl) {
@@ -131,7 +131,7 @@ async function predict(sourceElement) {
     const prediction = await model.predict(sourceElement);
     const resultsContainer = document.getElementById("results-container");
 
-    // Factor de suavizado (0.15 = transiciones muy suaves y estables)
+    // Factor de suavizado (0.2 para cámara, 1.0 para imágenes)
     const alpha = webcamActive ? 0.2 : 1.0;
 
     let highestIndex = 0;
@@ -180,7 +180,7 @@ async function predict(sourceElement) {
     }
 }
 
-// Información de impacto ambiental
+// Información de impacto ambiental adaptada a tus etiquetas de Teachable Machine
 function updateEcoImpact(className) {
     const impactCard = document.getElementById("eco-impact-card");
     const co2Value = document.getElementById("co2-value");
@@ -190,7 +190,7 @@ function updateEcoImpact(className) {
     impactCard.classList.remove("hidden");
 
     const impactData = {
-        "carton y papel": {
+        "papel y carton": {
             co2: "-0.5 kg CO₂ eq",
             bin: "Contenedor Azul (Papel y Cartón)",
             tip: "Pliega muy bien las cajas antes de reciclarlas para optimizar el espacio en el centro de acopio."
@@ -207,7 +207,10 @@ function updateEcoImpact(className) {
         }
     };
 
-    const data = impactData[className.toLowerCase()];
+    // Normalizamos el nombre de la clase detectada (minúsculas, sin tildes extras) para que coincida con el diccionario
+    const normalizedClass = className.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const data = impactData[normalizedClass];
+    
     if (data) {
         co2Value.textContent = data.co2;
         binValue.textContent = data.bin;
@@ -215,7 +218,7 @@ function updateEcoImpact(className) {
     }
 }
 
-// Cargar el modelo por defecto al iniciar
+// Cargar el modelo por defecto al iniciar la página
 window.addEventListener("DOMContentLoaded", () => {
     loadModel(URL);
 });
