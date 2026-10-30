@@ -5,7 +5,7 @@ let URL = DEFAULT_URL;
 let model, webcam, maxPredictions;
 let webcamActive = false;
 
-// Almacenar probabilidades suavizadas para evitar que las barras se "vuelvan locas"
+// Almacenar probabilidades suavizadas para evitar parpadeos en las barras
 let smoothedProbabilities = [];
 
 // Inicializar al cargar o cambiar de modelo
@@ -124,20 +124,17 @@ async function handleImageUpload(event) {
     reader.readAsDataURL(file);
 }
 
-// Predicción con suavizado exponencial para eliminar parpadeos de las barras
+// Predicción con suavizado exponencial
 async function predict(sourceElement) {
     if (!model) return;
 
     const prediction = await model.predict(sourceElement);
     const resultsContainer = document.getElementById("results-container");
 
-    // Factor de suavizado (0.2 para cámara, 1.0 para imágenes)
     const alpha = webcamActive ? 0.2 : 1.0;
-
     let highestIndex = 0;
     let maxProb = 0;
 
-    // Actualizar probabilidades suavizadas
     for (let i = 0; i < maxPredictions; i++) {
         const rawProb = prediction[i].probability * 100;
         smoothedProbabilities[i] = (alpha * rawProb) + ((1 - alpha) * (smoothedProbabilities[i] || 0));
@@ -167,20 +164,19 @@ async function predict(sourceElement) {
                 </span>
             </div>
             <div class="w-full bg-slate-950 rounded-full h-3 overflow-hidden border border-slate-800">
-                <div class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full rounded-full smooth-progress" style="width: ${probVal.toFixed(1)}%"></div>
+                <div class="bg-gradient-to-r from-emerald-400 via-white to-blue-500 h-full rounded-full smooth-progress" style="width: ${probVal.toFixed(1)}%"></div>
             </div>
         `;
         resultsContainer.appendChild(progressWrapper);
     }
 
-    // Mostrar impacto ambiental si la predicción destacada supera el 75%
     const highestClass = prediction[highestIndex].className;
     if (maxProb > 75 && highestClass.toLowerCase() !== "nada") {
         updateEcoImpact(highestClass);
     }
 }
 
-// Información de impacto ambiental adaptada a tus etiquetas de Teachable Machine
+// Información de impacto ambiental con Papel, Plástico, Vidrio, Metal y Orgánico
 function updateEcoImpact(className) {
     const impactCard = document.getElementById("eco-impact-card");
     const co2Value = document.getElementById("co2-value");
@@ -204,10 +200,19 @@ function updateEcoImpact(className) {
             co2: "-0.8 kg CO₂ eq",
             bin: "Contenedor Verde (Vidrio)",
             tip: "El vidrio es 100% reciclable y puede reutilizarse infinitamente sin perder su calidad."
+        },
+        "metal": {
+            co2: "-2.0 kg CO₂ eq",
+            bin: "Contenedor Gris o Rojo (Metales / Latas)",
+            tip: "Las latas de aluminio y acero se pueden reciclar indefinidamente ahorrando muchísima energía."
+        },
+        "organico": {
+            co2: "-0.9 kg CO₂ eq",
+            bin: "Contenedor Marrón u Orgánicos (Compostaje)",
+            tip: "Los restos de comida y jardín se transforman en un abono natural excelente para la tierra."
         }
     };
 
-    // Normalizamos el nombre de la clase detectada (minúsculas, sin tildes extras) para que coincida con el diccionario
     const normalizedClass = className.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     const data = impactData[normalizedClass];
     
