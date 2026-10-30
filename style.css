@@ -1,83 +1,98 @@
 /* ----------------------------------------------------
-   EcoTrack - Estilos Ecológicos Oscuros (Verde Esmeralda & Azul Océano)
+   EcoTrack - Estilos Ecológicos Claros y Extravagantes
    ---------------------------------------------------- */
 
 :root {
-  --bg-dark: #060913;
-  --card-bg: rgba(15, 23, 42, 0.75);
-  --emerald-accent: #10b981;
+  --bg-light: #f0fdf4;
+  --card-bg: rgba(255, 255, 255, 0.88);
+  --emerald-main: #059669;
+  --teal-accent: #0d9488;
   --sky-accent: #0284c7;
-  --border-glow: rgba(16, 185, 129, 0.25);
+  --glow-emerald: rgba(16, 185, 129, 0.4);
 }
 
-body.bg-eco-dark {
-  background-color: var(--bg-dark);
+body.bg-eco-light {
+  background-color: var(--bg-light);
   background-image: 
-    radial-gradient(circle at 15% 20%, rgba(16, 185, 129, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 85% 80%, rgba(2, 132, 199, 0.08) 0%, transparent 40%);
+    radial-gradient(circle at 10% 10%, rgba(56, 189, 248, 0.15) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.18) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.1) 0%, transparent 60%);
   background-attachment: fixed;
+  color: #0f172a;
 }
 
-/* Glassmorphism Card Style */
-.glass-card {
+/* Tarjeta Extravagante estilo Neumórfico / Glass */
+.glass-card-extravagant {
   background: var(--card-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid rgba(16, 185, 129, 0.3);
+  border-radius: 1.75rem;
+  box-shadow: 0 20px 40px -15px rgba(14, 116, 144, 0.15), 0 0 25px 0 rgba(16, 185, 129, 0.1);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.glass-card:hover {
-  border-color: var(--border-glow);
-  box-shadow: 0 8px 32px 0 rgba(16, 185, 129, 0.15);
+.glass-card-extravagant:hover {
+  transform: translateY(-4px) scale(1.005);
+  border-color: rgba(2, 132, 199, 0.6);
+  box-shadow: 0 25px 50px -12px rgba(16, 185, 129, 0.25), 0 0 35px 0 rgba(56, 189, 248, 0.2);
 }
 
-/* Custom Buttons */
-.btn-primary {
-  background: linear-gradient(135deg, #059669 0%, #0284c7 100%);
+/* Botones Extravagantes con degradado neón */
+.btn-extravagant-primary {
+  background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
   color: #ffffff;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 14px 0 rgba(5, 150, 105, 0.35);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 1rem;
+  box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
+  transition: all 0.3s ease;
 }
 
-.btn-primary:hover {
+.btn-extravagant-primary:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 15px 30px -5px rgba(6, 182, 212, 0.6);
+  filter: brightness(1.08);
+}
+
+.btn-extravagant-secondary {
+  background: #ffffff;
+  color: #0f766e;
+  border: 2px solid #0d9488;
+  font-weight: 800;
+  border-radius: 1rem;
+  box-shadow: 0 4px 15px rgba(13, 148, 136, 0.15);
+  transition: all 0.3s ease;
+}
+
+.btn-extravagant-secondary:hover {
+  background: #ccfbf1;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px 0 rgba(2, 132, 199, 0.45);
-  filter: brightness(1.1);
+  box-shadow: 0 8px 20px rgba(13, 148, 136, 0.25);
 }
 
-.btn-secondary {
-  background: rgba(30, 41, 59, 0.8);
-  color: #e2e8f0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.25s ease;
+/* Animación de pulso para resaltados */
+@keyframes neon-pulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 25px rgba(56, 189, 248, 0.7); }
 }
 
-.btn-secondary:hover {
-  background: rgba(51, 65, 85, 0.9);
-  border-color: rgba(16, 185, 129, 0.4);
-  color: #ffffff;
+.neon-glow {
+  animation: neon-pulse 3s infinite;
 }
 
-/* Custom Animated Progress Bar */
-.progress-bar-fill {
-  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  background: linear-gradient(90deg, #10b981 0%, #38bdf8 100%);
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
-}
-
-/* Custom Scrollbar */
+/* Custom Scrollbar Claro */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #060913;
+  background: #e0f2fe;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 4px;
+  background: #10b981;
+  border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #10b981;
+  background: #0284c7;
 }
